@@ -1,0 +1,38 @@
+name: Binance Triangular Arbitrage Scanner
+
+on:
+  workflow_dispatch: {}          # lets you run it manually from the Actions tab
+  schedule:
+    - cron: "*/5 * * * *"        # every 5 minutes, UTC. GitHub may delay this slightly.
+
+permissions:
+  contents: write   # needed so the workflow can commit the CSV logs back to the repo
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scanner
+        env:
+          FEE_RATE: "0.001"
+          MIN_PROFIT_PCT: "0.0"
+        run: python triangular_scanner.py
+
+      - name: Commit updated logs
+        run: |
+          git config user.name "arb-scanner"
+          git config user.email "arb-scanner@users.noreply.github.com"
+          git add scan_log.csv opportunities.csv
+          git diff --cached --quiet || git commit -m "Update scan logs [skip ci]"
+          git push
