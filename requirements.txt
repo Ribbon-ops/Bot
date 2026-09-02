@@ -1,6 +1,3 @@
-numpy
+yfinance
 pandas
-requests
-python-telegram-bot
-ccxt
-ta
+numpy
