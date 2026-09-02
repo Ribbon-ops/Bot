@@ -1,0 +1,44 @@
+name: Forex Scalp Signal Scanner
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes, matching the M5 chart timeframe
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run signal scanner
+        env:
+          METAAPI_TOKEN: ${{ secrets.METAAPI_TOKEN }}
+          METAAPI_ACCOUNT_ID: ${{ secrets.METAAPI_ACCOUNT_ID }}
+          SYMBOLS: "EURUSD,GBPUSD,USDJPY,XAUUSD"
+          TIMEFRAME: "5m"
+        run: python signal_scanner.py
+
+      - name: Commit updated logs
+        run: |
+          git config user.name "signal-scanner"
+          git config user.email "signal-scanner@users.noreply.github.com"
+          for f in open_signals.json signals_log.csv closed_trades.csv; do
+            if [ -f "$f" ]; then
+              git add "$f"
+            fi
+          done
+          git diff --cached --quiet || git commit -m "Update signal logs [skip ci]"
+          git push
