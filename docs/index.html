@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Bots Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card-bg: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --yellow: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 20px; margin: 8px 0 4px 0; }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 16px; }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--blue); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .card-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .card-value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+  .neutral { color: var(--yellow); }
+
+  .chart-container {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 20px;
+  }
+  .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  th { color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  .table-scroll { overflow-x: auto; }
+
+  #status, #status-forex { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+  button.refresh {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.refresh:active { opacity: 0.8; }
+
+  .empty-state { color: var(--text-dim); font-size: 13px; padding: 20px 0; text-align: center; }
+  .footer-note {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge.win { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge.loss { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge.buy { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge.sell { background: rgba(248,81,73,0.15); color: var(--red); }
+</style>
+</head>
+<body>
+
+<h1>Trading Bots Dashboard</h1>
+<div class="subtitle">Paper mode — no real orders placed by either bot</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('crypto')">Crypto Arb</button>
+  <button class="tab-btn" onclick="switchTab('forex')">Forex Scalp</button>
+</div>
+
+<!-- ================= CRYPTO ARB TAB ================= -->
+<div id="tab-crypto" class="tab-panel active">
+  <div id="status">Loading data…</div>
+  <button class="refresh" onclick="loadCryptoData()">Refresh now</button>
+
+  <div class="cards" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-label">Total scans logged</div>
+      <div class="card-value" id="stat-scans">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Last scan</div>
+      <div class="card-value" id="stat-lastscan" style="font-size:14px;">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Best spread ever seen</div>
+      <div class="card-value" id="stat-best">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Opportunities found</div>
+      <div class="card-value" id="stat-opps">—</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Best spread per scan (net of fees, %)</div>
+    <canvas id="spreadChart" height="180"></canvas>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Latest opportunities</div>
+    <div class="table-scroll">
+      <table id="opps-table">
+        <thead><tr><th>Time (UTC)</th><th>Triangle</th><th>Net %</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="opps-empty" style="display:none;">
+      No opportunities logged yet — this is expected most of the time.
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Recent scans</div>
+    <div class="table-scroll">
+      <table id="scans-table">
+        <thead><tr><th>Time (UTC)</th><th>Triangles</th><th>Best triangle</th><th>Best %</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Reads scan_log.csv and opportunities.csv from this repo's main branch.
+    Updates every ~5 minutes when the Actions workflow runs.
+  </div>
+</div>
+
+<!-- ================= FOREX SCALP TAB ================= -->
+<div id="tab-forex" class="tab-panel">
+  <div id="status-forex">Loading data…</div>
+  <button class="refresh" onclick="loadForexData()">Refresh now</button>
+
+  <div class="cards" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-label">Signals fired</div>
+      <div class="card-value" id="fx-stat-signals">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Open right now</div>
+      <div class="card-value" id="fx-stat-open">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Win rate</div>
+      <div class="card-value" id="fx-stat-winrate">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Cumulative pips</div>
+      <div class="card-value" id="fx-stat-pips">—</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Cumulative pips over time (closed trades only)</div>
+    <canvas id="pipsChart" height="180"></canvas>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Currently open signals</div>
+    <div class="table-scroll">
+      <table id="open-signals-table">
+        <thead><tr><th>Symbol</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>Opened</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="open-signals-empty" style="display:none;">
+      No open signals right now.
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Recent closed trades</div>
+    <div class="table-scroll">
+      <table id="closed-trades-table">
+        <thead><tr><th>Time (UTC)</th><th>Symbol</th><th>Dir</th><th>Result</th><th>Pips</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="closed-trades-empty" style="display:none;">
+      No trades closed yet.
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Reads signals_log.csv, closed_trades.csv and open_signals.json from this
+    repo's main branch. Entry/SL/TP levels are hypothetical (paper) — no real
+    orders are placed by this bot. Updates every ~5 minutes.
+  </div>
+</div>
+
+<script>
+// ---- Config: edit these if you rename or fork the repo ----
+const OWNER = "Ribbon-ops";
+const REPO = "Bot";
+const BRANCH = "main";
+// -------------------------------------------------------------
+
+const RAW_BASE = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
+
+function switchTab(name) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  event.target.classList.add("active");
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length === 0 || !text.trim()) return [];
+  const headers = parseLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = parseLine(lines[i]);
+    const row = {};
+    headers.forEach((h, idx) => row[h] = values[idx]);
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseLine(line) {
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else { inQuotes = false; }
+      } else { cur += c; }
+    } else {
+      if (c === '"') { inQuotes = true; }
+      else if (c === ',') { result.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+async function fetchCSV(filename) {
+  const url = RAW_BASE + filename + "?t=" + Date.now();
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    if (resp.status === 404) return [];
+    throw new Error(`Failed to fetch ${filename}: ${resp.status}`);
+  }
+  const text = await resp.text();
+  return parseCSV(text);
+}
+
+async function fetchJSON(filename) {
+  const url = RAW_BASE + filename + "?t=" + Date.now();
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    if (resp.status === 404) return {};
+    throw new Error(`Failed to fetch ${filename}: ${resp.status}`);
+  }
+  return await resp.json();
+}
+
+function fmtPct(val) {
+  const num = parseFloat(val);
+  if (isNaN(num)) return "—";
+  const sign = num > 0 ? "+" : "";
+  return `${sign}${num.toFixed(4)}%`;
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// ---------------- CRYPTO ARB ----------------
+let cryptoChart = null;
+
+function renderCrypto(scans, opps) {
+  document.getElementById("stat-scans").textContent = scans.length.toLocaleString();
+
+  if (scans.length > 0) {
+    const last = scans[scans.length - 1];
+    document.getElementById("stat-lastscan").textContent = fmtTime(last.timestamp_utc);
+
+    let bestEver = -Infinity;
+    scans.forEach(s => {
+      const p = parseFloat(s.best_profit_pct);
+      if (!isNaN(p) && p > bestEver) bestEver = p;
+    });
+    const bestEl = document.getElementById("stat-best");
+    bestEl.textContent = fmtPct(bestEver);
+    bestEl.className = "card-value " + (bestEver > 0 ? "positive" : "negative");
+  }
+
+  document.getElementById("stat-opps").textContent = opps.length.toLocaleString();
+
+  const recentScans = scans.slice(-100);
+  const labels = recentScans.map(s => fmtTime(s.timestamp_utc));
+  const values = recentScans.map(s => parseFloat(s.best_profit_pct));
+
+  const ctx = document.getElementById("spreadChart").getContext("2d");
+  if (cryptoChart) cryptoChart.destroy();
+  cryptoChart = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets: [{
+      label: "Best net spread (%)", data: values,
+      borderColor: "#58a6ff", backgroundColor: "rgba(88,166,255,0.1)",
+      borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+    }] },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#8b949e", maxTicksLimit: 6, font: { size: 10 } }, grid: { color: "#21262d" } },
+        y: { ticks: { color: "#8b949e", font: { size: 10 } }, grid: { color: "#21262d" } }
+      }
+    }
+  });
+
+  const oppsBody = document.querySelector("#opps-table tbody");
+  oppsBody.innerHTML = "";
+  const oppsEmpty = document.getElementById("opps-empty");
+  if (opps.length === 0) {
+    oppsEmpty.style.display = "block";
+  } else {
+    oppsEmpty.style.display = "none";
+    opps.slice(-20).reverse().forEach(o => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${fmtTime(o.timestamp_utc)}</td><td>${o.triangle}</td><td class="positive">${fmtPct(o.net_profit_pct)}</td>`;
+      oppsBody.appendChild(tr);
+    });
+  }
+
+  const scansBody = document.querySelector("#scans-table tbody");
+  scansBody.innerHTML = "";
+  scans.slice(-20).reverse().forEach(s => {
+    const tr = document.createElement("tr");
+    const p = parseFloat(s.best_profit_pct);
+    const cls = p > 0 ? "positive" : "negative";
+    tr.innerHTML = `<td>${fmtTime(s.timestamp_utc)}</td><td>${s.triangles_discovered || "—"}</td><td>${s.best_triangle}</td><td class="${cls}">${fmtPct(s.best_profit_pct)}</td>`;
+    scansBody.appendChild(tr);
+  });
+}
+
+async function loadCryptoData() {
+  const statusEl = document.getElementById("status");
+  statusEl.textContent = "Loading data…";
+  try {
+    const [scans, opps] = await Promise.all([fetchCSV("scan_log.csv"), fetchCSV("opportunities.csv")]);
+    if (scans.length === 0) {
+      statusEl.textContent = "No scan data found yet — has the workflow run at least once?";
+      return;
+    }
+    renderCrypto(scans, opps);
+    statusEl.textContent = `Loaded ${scans.length} scans, ${opps.length} opportunities. Last updated ${new Date().toLocaleTimeString()}.`;
+  } catch (err) {
+    statusEl.textContent = "Error loading data: " + err.message;
+    console.error(err);
+  }
+}
+
+// ---------------- FOREX SCALP ----------------
+let forexChart = null;
+
+function renderForex(signals, closed, openSignals) {
+  document.getElementById("fx-stat-signals").textContent = signals.length.toLocaleString();
+
+  const openCount = Object.keys(openSignals).length;
+  document.getElementById("fx-stat-open").textContent = openCount.toLocaleString();
+
+  const wins = closed.filter(t => t.outcome === "WIN").length;
+  const losses = closed.filter(t => t.outcome === "LOSS").length;
+  const total = wins + losses;
+  const winRateEl = document.getElementById("fx-stat-winrate");
+  if (total > 0) {
+    const rate = (wins / total * 100).toFixed(1);
+    winRateEl.textContent = `${rate}%`;
+    winRateEl.className = "card-value " + (rate >= 50 ? "positive" : "negative");
+  } else {
+    winRateEl.textContent = "—";
+  }
+
+  let cumPips = 0;
+  const cumSeries = [];
+  closed.forEach(t => {
+    const p = parseFloat(t.pips);
+    if (!isNaN(p)) cumPips += p;
+    cumSeries.push(cumPips);
+  });
+  const pipsEl = document.getElementById("fx-stat-pips");
+  pipsEl.textContent = `${cumPips > 0 ? "+" : ""}${cumPips.toFixed(1)}`;
+  pipsEl.className = "card-value " + (cumPips > 0 ? "positive" : cumPips < 0 ? "negative" : "");
+
+  const ctx = document.getElementById("pipsChart").getContext("2d");
+  if (forexChart) forexChart.destroy();
+  const labels = closed.map(t => fmtTime(t.timestamp_utc));
+  forexChart = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets: [{
+      label: "Cumulative pips", data: cumSeries,
+      borderColor: "#3fb950", backgroundColor: "rgba(63,185,80,0.1)",
+      borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+    }] },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#8b949e", maxTicksLimit: 6, font: { size: 10 } }, grid: { color: "#21262d" } },
+        y: { ticks: { color: "#8b949e", font: { size: 10 } }, grid: { color: "#21262d" } }
+      }
+    }
+  });
+
+  const openBody = document.querySelector("#open-signals-table tbody");
+  openBody.innerHTML = "";
+  const openEmpty = document.getElementById("open-signals-empty");
+  const openEntries = Object.entries(openSignals);
+  if (openEntries.length === 0) {
+    openEmpty.style.display = "block";
+  } else {
+    openEmpty.style.display = "none";
+    openEntries.forEach(([symbol, s]) => {
+      const tr = document.createElement("tr");
+      const dirBadge = s.direction === "BUY" ? "buy" : "sell";
+      tr.innerHTML = `<td>${symbol}</td><td><span class="badge ${dirBadge}">${s.direction}</span></td>
+        <td>${parseFloat(s.entry_price).toFixed(5)}</td><td>${parseFloat(s.stop_loss).toFixed(5)}</td>
+        <td>${parseFloat(s.take_profit).toFixed(5)}</td><td>${fmtTime(s.opened_at)}</td>`;
+      openBody.appendChild(tr);
+    });
+  }
+
+  const closedBody = document.querySelector("#closed-trades-table tbody");
+  closedBody.innerHTML = "";
+  const closedEmpty = document.getElementById("closed-trades-empty");
+  if (closed.length === 0) {
+    closedEmpty.style.display = "block";
+  } else {
+    closedEmpty.style.display = "none";
+    closed.slice(-20).reverse().forEach(t => {
+      const tr = document.createElement("tr");
+      const outcomeBadge = t.outcome === "WIN" ? "win" : "loss";
+      const dirBadge = t.direction === "BUY" ? "buy" : "sell";
+      const pipsCls = parseFloat(t.pips) > 0 ? "positive" : "negative";
+      tr.innerHTML = `<td>${fmtTime(t.timestamp_utc)}</td><td>${t.symbol}</td>
+        <td><span class="badge ${dirBadge}">${t.direction}</span></td>
+        <td><span class="badge ${outcomeBadge}">${t.outcome}</span></td>
+        <td class="${pipsCls}">${t.pips}</td>`;
+      closedBody.appendChild(tr);
+    });
+  }
+}
+
+async function loadForexData() {
+  const statusEl = document.getElementById("status-forex");
+  statusEl.textContent = "Loading data…";
+  try {
+    const [signals, closed, openSignals] = await Promise.all([
+      fetchCSV("signals_log.csv"),
+      fetchCSV("closed_trades.csv"),
+      fetchJSON("open_signals.json"),
+    ]);
+    if (signals.length === 0 && closed.length === 0) {
+      statusEl.textContent = "No signal data found yet — has the workflow run at least once?";
+      renderForex([], [], {});
+      return;
+    }
+    renderForex(signals, closed, openSignals);
+    statusEl.textContent = `Loaded ${signals.length} signals, ${closed.length} closed trades. Last updated ${new Date().toLocaleTimeString()}.`;
+  } catch (err) {
+    statusEl.textContent = "Error loading data: " + err.message;
+    console.error(err);
+  }
+}
+
+loadCryptoData();
+loadForexData();
+setInterval(() => { loadCryptoData(); loadForexData(); }, 60000);
+</script>
+
+</body>
+</html>
