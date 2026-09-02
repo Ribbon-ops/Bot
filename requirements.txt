@@ -1,1 +1,6 @@
-requests==2.32.*
+numpy
+pandas
+requests
+python-telegram-bot
+ccxt
+ta
