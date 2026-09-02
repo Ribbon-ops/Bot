@@ -1,0 +1,2 @@
+timestamp_utc,symbol,direction,entry_price,exit_price,outcome,pips,opened_at
+2026-09-02T23:10:30.463698+00:00,XAUUSD,SELL,4429.39990234375,4430.39990234375,LOSS,-10.0,2026-09-02T22:57:35.199799+00:00
