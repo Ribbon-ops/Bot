@@ -16,7 +16,7 @@ jobs:
       - name: Install
         run: pip install yfinance pandas numpy
       - name: Run
-        run: python Bot/signal_scanner.py
+        run: python signal_scanner.py
       - name: Save logs
         run: |
           git config --global user.name "bot"
