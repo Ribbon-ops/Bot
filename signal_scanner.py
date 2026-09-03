@@ -1,139 +1,155 @@
-import csv, json, os, time
+import csv, json, os
 from datetime import datetime, timezone
-import numpy as np
 import pandas as pd
 import yfinance as yf
 
 SYMBOLS = [s.strip() for s in os.getenv("SYMBOLS", "EURUSD,GBPUSD,USDJPY,XAUUSD").split(",")]
-TIMEFRAME = os.getenv("TIMEFRAME", "5m")
+TIMEFRAME = os.getenv("TIMEFRAME", "1m")
 
-OPEN_SIGNALS_FILE = "open_signals.json"
-SIGNALS_LOG = "signals_log.csv"
-CLOSED_TRADES_LOG = "closed_trades.csv"
+OPEN_FILE = "open_signals.json"
+LOG = "signals_log.csv"
+CLOSED = "closed_trades.csv"
 
 YAHOO_MAP = {"EURUSD":"EURUSD=X","GBPUSD":"GBPUSD=X","USDJPY":"USDJPY=X","XAUUSD":"GC=F"}
-SYMBOL_CONFIG = {
-    "EURUSD": {"pip_size":0.0001,"tp_pips":7,"sl_pips":4},
-    "GBPUSD": {"pip_size":0.0001,"tp_pips":7,"sl_pips":4},
-    "USDJPY": {"pip_size":0.01,"tp_pips":7,"sl_pips":4},
-    "XAUUSD": {"pip_size":0.1,"tp_pips":20,"sl_pips":12},
+CONFIG = {
+    "EURUSD": {"pip":0.0001,"tp":3.0,"sl":8,"sweep_tp":1.2,"max":5},
+    "GBPUSD": {"pip":0.0001,"tp":3.0,"sl":8,"sweep_tp":1.2,"max":5},
+    "USDJPY": {"pip":0.01,"tp":3.0,"sl":8,"sweep_tp":1.2,"max":5},
+    "XAUUSD": {"pip":0.1,"tp":5,"sl":15,"sweep_tp":2.0,"max":3},
 }
-DEFAULT_CONFIG = {"pip_size":0.0001,"tp_pips":7,"sl_pips":4}
+DEF = {"pip":0.0001,"tp":3.0,"sl":8,"sweep_tp":1.2,"max":5}
 
-def ema(s, span): return s.ewm(span=span, adjust=False).mean()
-def rsi(s, period=14):
-    d=s.diff(); g=d.clip(lower=0); l=-d.clip(upper=0)
-    ag=g.rolling(period).mean(); al=l.rolling(period).mean()
-    rs=ag/al.replace(0,np.nan); r=100-(100/(1+rs))
-    r[(al==0)&(g>0)]=100; r[(al==0)&(g==0)]=50; return r
+def load_opens():
+    if os.path.exists(OPEN_FILE):
+        try:
+            with open(OPEN_FILE) as f:
+                data=json.load(f)
+                for k,v in data.items():
+                    if isinstance(v,dict):
+                        data[k]=[v]
+                return data
+        except:
+            pass
+    return {s: [] for s in SYMBOLS}
 
-def adx(df, period=14):
-    h=df['high']; l=df['low']; c=df['close']
-    tr=pd.concat([h-l,(h-c.shift()).abs(),(l-c.shift()).abs()],axis=1).max(axis=1)
-    up=h.diff(); down=-l.diff()
-    plus_dm=np.where((up>down)&(up>0),up,0.0)
-    minus_dm=np.where((down>up)&(down>0),down,0.0)
-    atr=tr.rolling(period).mean()
-    plus_di=100*(pd.Series(plus_dm).rolling(period).mean()/atr)
-    minus_di=100*(pd.Series(minus_dm).rolling(period).mean()/atr)
-    dx=100*((plus_di-minus_di).abs()/(plus_di+minus_di).replace(0,np.nan))
-    adx_val=dx.rolling(period).mean()
-    return adx_val, plus_di, minus_di
+def save_opens(d):
+    with open(OPEN_FILE,"w") as f:
+        json.dump(d,f,indent=2)
 
-def load_open_signals():
-    if os.path.exists(OPEN_SIGNALS_FILE):
-        with open(OPEN_SIGNALS_FILE) as f: return json.load(f)
-    return {}
-def save_open_signals(d):
-    with open(OPEN_SIGNALS_FILE,"w") as f: json.dump(d,f,indent=2)
 def log_row(fn, fields, row):
     ex=os.path.exists(fn)
     with open(fn,"a",newline="") as f:
+        import csv
         w=csv.DictWriter(f,fieldnames=fields)
-        if not ex: w.writeheader()
+        if not ex:
+            w.writeheader()
         w.writerow(row)
 
-def get_candles(symbol, tf="5m"):
-    ticker=YAHOO_MAP.get(symbol,symbol)
-    df=yf.download(tickers=ticker,period="10d",interval=tf,progress=False,auto_adjust=False)
-    if df.empty: return None
-    if isinstance(df.columns,pd.MultiIndex): df.columns=df.columns.get_level_values(0)
+def get_candles(sym, tf):
+    ticker=YAHOO_MAP.get(sym,sym)
+    df=yf.download(tickers=ticker,period="2d",interval=tf,progress=False,auto_adjust=False)
+    if df.empty:
+        return None
+    if isinstance(df.columns,pd.MultiIndex):
+        df.columns=df.columns.get_level_values(0)
     df.columns=[c.lower() for c in df.columns]
     return df
 
 def main():
     ts=datetime.now(timezone.utc).isoformat()
-    hour=datetime.now(timezone.utc).hour
-    # Session filter - avoid Asian low vol
-    if hour < 7 or hour > 21:
-        print(f"Outside London/NY session ({hour} UTC) - skipping to avoid chop")
-        return
-    opens=load_open_signals()
-    print(f"V2 Scan at {ts}")
+    opens=load_opens()
+    for s in SYMBOLS:
+        if s not in opens:
+            opens[s]=[]
+        if not isinstance(opens[s], list):
+            opens[s]=[opens[s]]
+
+    print(f"V4 $10 Test - Sweep Scalper {ts} TF={TIMEFRAME}")
     for symbol in SYMBOLS:
         try:
-            cfg=SYMBOL_CONFIG.get(symbol,DEFAULT_CONFIG)
+            cfg=CONFIG.get(symbol,DEF)
             df=get_candles(symbol,TIMEFRAME)
-            if df is None or len(df)<60: print(f" {symbol}: no data"); continue
-            df["close"]=df["close"].astype(float)
+            if df is None or len(df)<20:
+                print(f" {symbol}: no data")
+                continue
             cur=float(df["close"].iloc[-1])
-            # Check open trades
-            if symbol in opens:
-                sig=opens[symbol]; tp=sig["take_profit"]; sl=sig["stop_loss"]
-                outcome=None; exit_p=None
-                if sig["direction"]=="BUY":
-                    if cur>=tp: outcome="WIN"; exit_p=tp
-                    elif cur<=sl: outcome="LOSS"; exit_p=sl
+            high_5=float(df["high"].iloc[-6:-1].max())
+            low_5=float(df["low"].iloc[-6:-1].min())
+            last=df.iloc[-1]
+            prev=df.iloc[-2]
+
+            remaining=[]
+            for trade in opens[symbol]:
+                entry=trade["entry_price"]
+                is_buy=trade["direction"]=="BUY"
+                profit_pips=(cur-entry)/cfg["pip"] if is_buy else (entry-cur)/cfg["pip"]
+                candle_reversed = (is_buy and float(last["close"])<float(last["open"])) or (not is_buy and float(last["close"])>float(last["open"]))
+
+                should_close_sweep=False
+                outcome=None
+                exit_p=None
+
+                if is_buy:
+                    if cur>=trade["take_profit"]:
+                        outcome="WIN"; exit_p=trade["take_profit"]
+                    elif cur<=trade["stop_loss"]:
+                        outcome="LOSS"; exit_p=trade["stop_loss"]
+                    elif profit_pips>=cfg["sweep_tp"] and candle_reversed:
+                        should_close_sweep=True
+                        outcome="WIN"; exit_p=cur
                 else:
-                    if cur<=tp: outcome="WIN"; exit_p=tp
-                    elif cur>=sl: outcome="LOSS"; exit_p=sl
+                    if cur<=trade["take_profit"]:
+                        outcome="WIN"; exit_p=trade["take_profit"]
+                    elif cur>=trade["stop_loss"]:
+                        outcome="LOSS"; exit_p=trade["stop_loss"]
+                    elif profit_pips>=cfg["sweep_tp"] and candle_reversed:
+                        should_close_sweep=True
+                        outcome="WIN"; exit_p=cur
+
                 if outcome:
-                    entry=sig["entry_price"]
-                    pips=(exit_p-entry)/cfg["pip_size"] if sig["direction"]=="BUY" else (entry-exit_p)/cfg["pip_size"]
-                    log_row(CLOSED_TRADES_LOG,["timestamp_utc","symbol","direction","entry_price","exit_price","outcome","pips","opened_at"],
-                            {"timestamp_utc":ts,"symbol":symbol,"direction":sig["direction"],"entry_price":entry,"exit_price":exit_p,"outcome":outcome,"pips":round(pips,1),"opened_at":sig["opened_at"]})
-                    print(f" {symbol}: {outcome}"); del opens[symbol]
-                else: print(f" {symbol}: open {sig['direction']} {cur:.5f}")
-                continue
-            # Indicators
-            df["ema_fast"]=ema(df["close"],9); df["ema_slow"]=ema(df["close"],21)
-            df["ema_trend"]=ema(df["close"],50)
-            df["rsi"]=rsi(df["close"],14)
-            df["bb_mid"]=df["close"].rolling(20).mean()
-            df["bb_std"]=df["close"].rolling(20).std()
-            df["bb_upper"]=df["bb_mid"]+2*df["bb_std"]
-            df["bb_lower"]=df["bb_mid"]-2*df["bb_std"]
-            df["bb_width"]=(df["bb_upper"]-df["bb_lower"])/df["bb_mid"]
-            adx_v, plus_di, minus_di = adx(df,14)
-            df["adx"]=adx_v; df["plus_di"]=plus_di; df["minus_di"]=minus_di
+                    pips=(exit_p-entry)/cfg["pip"] if is_buy else (entry-exit_p)/cfg["pip"]
+                    note="SWEEP-EXIT" if should_close_sweep else "TP/SL"
+                    log_row(CLOSED,["timestamp_utc","symbol","direction","entry_price","exit_price","outcome","pips","opened_at","note"],
+                            {"timestamp_utc":ts,"symbol":symbol,"direction":trade["direction"],"entry_price":entry,"exit_price":exit_p,"outcome":outcome,"pips":round(pips,2),"opened_at":trade["opened_at"],"note":note})
+                    print(f" {symbol}: CLOSED {trade['direction']} {outcome} {round(pips,2)}p {note}")
+                else:
+                    trade["current_price"]=cur
+                    remaining.append(trade)
+            opens[symbol]=remaining
 
-            prev,last=df.iloc[-2],df.iloc[-1]
-            if pd.isna(last["rsi"]) or pd.isna(last["adx"]) or pd.isna(last["ema_trend"]): continue
-
-            # Filters
-            if last["adx"] < 20: print(f" {symbol}: ADX {last['adx']:.1f} too weak - chop"); continue
-            if last["bb_width"] < 0.0015 and symbol!="XAUUSD": print(f" {symbol}: BB width too tight - no vol"); continue
-
-            crossed_up = prev["ema_fast"] <= prev["ema_slow"] and last["ema_fast"] > last["ema_slow"]
-            crossed_down = prev["ema_fast"] >= prev["ema_slow"] and last["ema_fast"] < last["ema_slow"]
-
-            buy_ok = crossed_up and last["close"] > last["ema_trend"] and last["rsi"] > 50 and last["rsi"] < 70 and last["plus_di"] > last["minus_di"]
-            sell_ok = crossed_down and last["close"] < last["ema_trend"] and last["rsi"] < 50 and last["rsi"] > 30 and last["minus_di"] > last["plus_di"]
-
-            sig_dir="BUY" if buy_ok else "SELL" if sell_ok else None
-            if not sig_dir:
-                print(f" {symbol}: no signal p={cur:.5f} RSI={last['rsi']:.0f} ADX={last['adx']:.0f} trend={'up' if cur>last['ema_trend'] else 'down'}")
+            if len(opens[symbol]) >= cfg["max"]:
+                print(f" {symbol}: max {cfg['max']} open")
                 continue
 
-            entry=cur
-            sl=entry-cfg["sl_pips"]*cfg["pip_size"] if sig_dir=="BUY" else entry+cfg["sl_pips"]*cfg["pip_size"]
-            tp=entry+cfg["tp_pips"]*cfg["pip_size"] if sig_dir=="BUY" else entry-cfg["tp_pips"]*cfg["pip_size"]
-            opens[symbol]={"direction":sig_dir,"entry_price":entry,"stop_loss":sl,"take_profit":tp,"opened_at":ts}
-            log_row(SIGNALS_LOG,["timestamp_utc","symbol","direction","entry_price","stop_loss","take_profit","rsi","adx"],
-                    {"timestamp_utc":ts,"symbol":symbol,"direction":sig_dir,"entry_price":round(entry,5),"stop_loss":round(sl,5),"take_profit":round(tp,5),"rsi":round(float(last["rsi"]),1),"adx":round(float(last["adx"]),1)})
-            print(f" {symbol}: NEW V2 {sig_dir} ADX={last['adx']:.0f} RSI={last['rsi']:.0f}")
-            time.sleep(1)
-        except Exception as e: print(f" {symbol}: ERROR {e}")
-    save_open_signals(opens)
+            buy_stop_level = high_5 + 1.5*cfg["pip"]
+            sell_stop_level = low_5 - 1.5*cfg["pip"]
 
-if __name__=="__main__": main()
+            triggered=None
+            if cur >= buy_stop_level and float(prev["close"]) < high_5:
+                triggered="BUY"
+                print(f" {symbol}: BUY STOP grab {cur:.5f} >= {buy_stop_level:.5f}")
+            elif cur <= sell_stop_level and float(prev["close"]) > low_5:
+                triggered="SELL"
+                print(f" {symbol}: SELL STOP grab {cur:.5f} <= {sell_stop_level:.5f}")
+
+            if triggered:
+                if opens[symbol] and opens[symbol][0]["direction"]!=triggered:
+                    print(f" {symbol}: respecting reversal, no new {triggered}")
+                    continue
+                entry=cur
+                sl=entry-cfg["sl"]*cfg["pip"] if triggered=="BUY" else entry+cfg["sl"]*cfg["pip"]
+                tp=entry+cfg["tp"]*cfg["pip"] if triggered=="BUY" else entry-cfg["tp"]*cfg["pip"]
+                opens[symbol].append({"direction":triggered,"entry_price":entry,"stop_loss":sl,"take_profit":tp,"opened_at":ts,"current_price":cur,"buy_stop":buy_stop_level,"sell_stop":sell_stop_level})
+                log_row(LOG,["timestamp_utc","symbol","direction","entry_price","stop_loss","take_profit","buy_stop","sell_stop"],
+                        {"timestamp_utc":ts,"symbol":symbol,"direction":triggered,"entry_price":round(entry,5),"stop_loss":round(sl,5),"take_profit":round(tp,5),"buy_stop":round(buy_stop_level,5),"sell_stop":round(sell_stop_level,5)})
+                print(f" {symbol}: NEW {triggered} stack {len(opens[symbol])}/{cfg['max']}")
+            else:
+                print(f" {symbol}: waiting BS={buy_stop_level:.5f} SS={sell_stop_level:.5f} price={cur:.5f}")
+
+        except Exception as e:
+            print(f" {symbol}: ERR {e}")
+
+    save_opens(opens)
+
+if __name__=="__main__":
+    main()
