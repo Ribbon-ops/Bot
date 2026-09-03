@@ -1,8 +1,8 @@
-name: london uganda time
+name: london+ny uganda 10am-11pm
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 7-16 * * 1-5' # 7-16 UTC = 10am-7pm Uganda, Mon-Fri only
+    - cron: '*/5 7-20 * * 1-5'
 jobs:
   trade:
     runs-on: ubuntu-latest
@@ -15,6 +15,6 @@ jobs:
       - run: |
           git config user.name "bot"
           git config user.email "bot@bot.com"
-          git add Bot/open_signals.json Bot/closed_trades.csv open_signals.json closed_trades.csv || true
-          git commit -m "london $(date -u)" || true
+          git add Bot/ open_signals.json closed_trades.csv -A || true
+          git commit -m "trade $(date -u)" || true
           git push || true
