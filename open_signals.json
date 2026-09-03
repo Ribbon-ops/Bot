@@ -1,9 +1,6 @@
 {
-  "EURUSD": {
-    "direction": "SELL",
-    "entry_price": 1.1590172052383423,
-    "stop_loss": 1.1593172052383423,
-    "take_profit": 1.1585172052383423,
-    "opened_at": "2026-09-03T02:03:31.399652+00:00"
-  }
+  "EURUSD": [],
+  "GBPUSD": [],
+  "USDJPY": [],
+  "XAUUSD": []
 }
