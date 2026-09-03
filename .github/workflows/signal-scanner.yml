@@ -1,4 +1,4 @@
-name: Forex Scalp Signal Scanner
+name: Rapid Scan
 on:
   schedule:
     - cron: '*/1 * * * *'
@@ -6,22 +6,17 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install
-        run: pip install yfinance pandas numpy
-      - name: Run
-        run: python signal_scanner.py
-      - name: Save logs
+      - run: pip install yfinance pandas
+      - run: python signal_scanner.py
+      - name: Commit results
         run: |
-          git config --global user.name "bot"
-          git config --global user.email "bot@github.com"
-          git add open_signals.json closed_trades.csv signals_log.csv || true
-          git add *.json *.csv || true
-          git diff --staged --quiet || git commit -m "V4 $10 test update"
-          git push || true
+          git config user.name bot
+          git config user.email bot@bot.com
+          git add -A
+          git diff --staged --quiet || git commit -m "rapid cents update"
+          git push
