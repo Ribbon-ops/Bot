@@ -2,11 +2,11 @@
   "EURUSD": [
     {
       "direction": "BUY",
-      "entry_price": 1.160496711730957,
-      "stop_loss": 1.160096711730957,
-      "take_profit": 1.1606467117309571,
-      "opened_at": "2026-09-03T06:31:44.085511+00:00",
-      "current_price": 1.160496711730957,
+      "entry_price": 1.161170482635498,
+      "stop_loss": 1.160770482635498,
+      "take_profit": 1.1613204826354981,
+      "opened_at": "2026-09-03T06:48:54.648326+00:00",
+      "current_price": 1.161170482635498,
       "buy_stop": 0,
       "sell_stop": 0
     }
@@ -14,11 +14,11 @@
   "GBPUSD": [
     {
       "direction": "BUY",
-      "entry_price": 1.3491089344024658,
-      "stop_loss": 1.3487089344024659,
-      "take_profit": 1.349258934402466,
-      "opened_at": "2026-09-03T05:56:04.900344+00:00",
-      "current_price": 1.3488359451293945,
+      "entry_price": 1.3495277166366577,
+      "stop_loss": 1.3491277166366578,
+      "take_profit": 1.3496777166366578,
+      "opened_at": "2026-09-03T06:48:54.648326+00:00",
+      "current_price": 1.3495277166366577,
       "buy_stop": 0,
       "sell_stop": 0
     }
@@ -26,23 +26,23 @@
   "USDJPY": [
     {
       "direction": "BUY",
-      "entry_price": 157.24899291992188,
-      "stop_loss": 157.20899291992188,
-      "take_profit": 157.26399291992186,
-      "opened_at": "2026-09-03T06:31:44.085511+00:00",
-      "current_price": 157.24899291992188,
+      "entry_price": 157.0570068359375,
+      "stop_loss": 157.0170068359375,
+      "take_profit": 157.0720068359375,
+      "opened_at": "2026-09-03T06:48:54.648326+00:00",
+      "current_price": 157.0570068359375,
       "buy_stop": 0,
       "sell_stop": 0
     }
   ],
   "XAUUSD": [
     {
-      "direction": "SELL",
-      "entry_price": 4469.60009765625,
-      "stop_loss": 4470.20009765625,
-      "take_profit": 4469.35009765625,
-      "opened_at": "2026-09-03T06:31:44.085511+00:00",
-      "current_price": 4469.60009765625,
+      "direction": "BUY",
+      "entry_price": 4470.7998046875,
+      "stop_loss": 4470.1998046875,
+      "take_profit": 4471.0498046875,
+      "opened_at": "2026-09-03T06:48:54.648326+00:00",
+      "current_price": 4470.7998046875,
       "buy_stop": 0,
       "sell_stop": 0
     }
