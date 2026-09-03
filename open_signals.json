@@ -14,11 +14,11 @@
   "GBPUSD": [
     {
       "direction": "BUY",
-      "entry_price": 1.3495277166366577,
-      "stop_loss": 1.3491277166366578,
-      "take_profit": 1.3496777166366578,
-      "opened_at": "2026-09-03T05:33:57.176614+00:00",
-      "current_price": 1.3493092060089111,
+      "entry_price": 1.3491089344024658,
+      "stop_loss": 1.3487089344024659,
+      "take_profit": 1.349258934402466,
+      "opened_at": "2026-09-03T05:56:04.900344+00:00",
+      "current_price": 1.3491089344024658,
       "buy_stop": 0,
       "sell_stop": 0
     }
@@ -26,23 +26,23 @@
   "USDJPY": [
     {
       "direction": "BUY",
-      "entry_price": 157.60299682617188,
-      "stop_loss": 157.56299682617188,
-      "take_profit": 157.61799682617186,
-      "opened_at": "2026-09-03T05:38:14.241297+00:00",
-      "current_price": 157.5659942626953,
+      "entry_price": 157.4149932861328,
+      "stop_loss": 157.37499328613282,
+      "take_profit": 157.4299932861328,
+      "opened_at": "2026-09-03T05:56:04.900344+00:00",
+      "current_price": 157.4149932861328,
       "buy_stop": 0,
       "sell_stop": 0
     }
   ],
   "XAUUSD": [
     {
-      "direction": "BUY",
-      "entry_price": 4474.7998046875,
-      "stop_loss": 4474.1998046875,
-      "take_profit": 4475.0498046875,
-      "opened_at": "2026-09-03T05:47:55.787884+00:00",
-      "current_price": 4474.7998046875,
+      "direction": "SELL",
+      "entry_price": 4477.7001953125,
+      "stop_loss": 4478.3001953125,
+      "take_profit": 4477.4501953125,
+      "opened_at": "2026-09-03T05:56:04.900344+00:00",
+      "current_price": 4477.7001953125,
       "buy_stop": 0,
       "sell_stop": 0
     }
