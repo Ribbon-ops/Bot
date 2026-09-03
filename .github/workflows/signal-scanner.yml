@@ -1,24 +1,20 @@
-name: Rapid Scan
+name: london uganda time
 on:
-  schedule:
-    - cron: '*/1 * * * *'
   workflow_dispatch:
-permissions:
-  contents: write
+  schedule:
+    - cron: '*/5 7-16 * * 1-5' # 7-16 UTC = 10am-7pm Uganda, Mon-Fri only
 jobs:
-  scan:
+  trade:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+        with: {python-version: '3.11'}
       - run: pip install yfinance pandas
       - run: python signal_scanner.py
-      - name: Commit
-        run: |
-          git config user.name bot
-          git config user.email bot@bot.com
-          git add open_signals.json closed_trades.csv signals_log.csv Bot/ || true
-          git diff --staged --quiet || git commit -m "rapid"
-          git push
+      - run: |
+          git config user.name "bot"
+          git config user.email "bot@bot.com"
+          git add Bot/open_signals.json Bot/closed_trades.csv open_signals.json closed_trades.csv || true
+          git commit -m "london $(date -u)" || true
+          git push || true
