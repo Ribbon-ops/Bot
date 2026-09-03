@@ -1,7 +1,7 @@
 name: Forex Scalp Signal Scanner
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/2 * * * *'
   workflow_dispatch:
 jobs:
   scan:
@@ -21,7 +21,7 @@ jobs:
         run: |
           git config --global user.name "bot"
           git config --global user.email "bot@github.com"
-          git add Bot/ || true
+          git add open_signals.json closed_trades.csv signals_log.csv || true
           git add *.json *.csv || true
-          git diff --staged --quiet || git commit -m "update signals"
+          git diff --staged --quiet || git commit -m "V4 $10 test update"
           git push || true
