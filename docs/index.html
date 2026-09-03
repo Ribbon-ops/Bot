@@ -1,95 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>V4 $10 Test Dashboard</title>
-<style>
-body{background:#0a0e14;color:#e6e6e6;font-family:monospace;padding:12px}
-.card{background:#151a23;border-radius:12px;padding:14px;margin:10px 0;border:1px solid #232a39}
-.win{color:#00ff88}.loss{color:#ff4444}.open{color:#ffcc00}
-.big{font-size:30px;font-weight:bold}.small{opacity:0.7;font-size:12px}
-table{width:100%;border-collapse:collapse;font-size:12px} th,td{padding:6px;border-bottom:1px solid #232a39;text-align:left}
-.badge{padding:2px 6px;border-radius:6px;font-size:10px}.badge-win{background:#00ff8822;color:#00ff88}.badge-loss{background:#ff444422;color:#ff4444}
-</style>
-</head>
-<body>
-<h2>🔥 V4 $10 TEST - Live %</h2>
-<div class="card">
-<div class="small">CAPITAL TEST</div>
-<div>Starting: $<span id="startBal">10.00</span> | Now: $<span id="balance">10.00</span> | Lot: 0.01</div>
-<div class="big"><span id="totalPct">0.00</span>% <span id="totalMoney" class="small">$0.00</span></div>
-<div class="small">Winrate: <span id="winrate">0%</span> | Trades: <span id="totalTrades">0</span> | Floating: <span id="floating" class="open">0.00% ($0.00)</span></div>
-</div>
-<div class="card">
-<div class="small">OPEN TRADES - REAL TIME %</div>
-<table id="openTable"></table>
-</div>
-<div class="card">
-<div class="small">CLOSED - EVEN PROFITS %</div>
-<table id="closedTable"></table>
-</div>
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LIVE $10</title><style>body{background:#000;color:#0f0;font-family:monospace;padding:8px}.c{background:#111;padding:10px;margin:6px 0;border-radius:8px;border-left:3px solid #0f0}.s{color:#f44}.b{color:#0f0} h2{color:#fff}</style></head>
+<body><h2>LIVE $10 BOT</h2><div id="o">loading...</div><div id="t" style="color:#888"></div><h3 style="color:#fff">Closed</h3><div id="cl"></div>
 <script>
-const BALANCE = 10; // $10 TEST
-const LOT = 0.01;
-const PIP_VALUE = {"EURUSD":0.10,"GBPUSD":0.10,"USDJPY":0.09,"XAUUSD":0.10,"DEFAULT":0.10};
-function pipToStats(pips, symbol){
- const pv = PIP_VALUE[symbol]||PIP_VALUE.DEFAULT;
- const money = pips * pv * (LOT/0.01);
- const pct = (money/BALANCE)*100;
- return {money,pct};
+async function L(){
+ const d=Date.now();
+ try{
+  let r=await fetch('open_signals.json?'+d); let j=await r.json(); let h=''; let tot=0;
+  for(let s in j){ for(let x of j[s]){ let cur=x.current_price; let e=x.entry_price; let pip = s=='XAUUSD'?0.1:s=='USDJPY'?0.01:0.0001; let p = x.direction=='BUY'?(cur-e)/pip:(e-cur)/pip; let usd=p*0.01; tot+=usd; h+=`<div class=c><b>${s}</b> <span class=${x.direction=='BUY'?'b':'s'}>${x.direction}</span> ${p.toFixed(2)}p $${usd.toFixed(4)}<br>${e.toFixed(5)} -> ${cur.toFixed(5)}</div>`; } }
+  document.getElementById('o').innerHTML=h||'NO OPEN - next scan in 2min'; document.getElementById('t').innerHTML='Total $'+tot.toFixed(4)+' | '+new Date().toLocaleTimeString();
+ }catch(e){ document.getElementById('o').innerHTML='waiting scan...'; }
+ try{ let r=await fetch('closed_trades.csv?'+d); let t=await r.text(); let rows=t.trim().split('\n').slice(-15).reverse(); let h=''; for(let row of rows){ if(row.includes('symbol'))continue; let c=row.split(','); h+=`<div class=c>${c[1]} ${c[2]} <b style="color:${c[5]=='WIN'?'#0f0':'#f44'}">${c[5]} ${c[6]}p</b></div>`;} document.getElementById('cl').innerHTML=h; }catch(e){}
 }
-async function loadCSV(url){
- try{ const r=await fetch(url+"?t="+Date.now()); if(!r.ok) return []; const t=await r.text();
-  const lines=t.trim().split("\n"); if(lines.length<2) return [];
-  const headers=lines[0].split(","); return lines.slice(1).map(l=>{
-   const vals=l.split(","); const o={}; headers.forEach((h,i)=>o[h.trim()]=vals[i]); return o;
-  }).filter(o=>o.symbol);
- }catch{ return [] }
-}
-async function loadJSON(url){
- try{ const r=await fetch(url+"?t="+Date.now()); if(!r.ok) return {}; return await r.json(); }catch{ return {}; }
-}
-async function refresh(){
- const opens = await loadJSON("open_signals.json");
- const closed = await loadCSV("closed_trades.csv");
- let totalMoney=0, wins=0;
- let floatingMoney=0, floatingPct=0;
- let openRows="<tr><th>Symbol</th><th>Dir</th><th>Entry</th><th>Now</th><th>Pips</th><th>%</th><th>$</th></tr>";
- for(const sym in opens){
-  const trades = Array.isArray(opens[sym])? opens[sym]:[];
-  for(const tr of trades){
-   if(!tr.entry_price) continue;
-   const entry=parseFloat(tr.entry_price);
-   const cur=parseFloat(tr.current_price||tr.entry_price);
-   const cfgPip = sym=="USDJPY"?0.01: sym=="XAUUSD"?0.1:0.0001;
-   const pips = tr.direction=="BUY"? (cur-entry)/cfgPip : (entry-cur)/cfgPip;
-   const s=pipToStats(pips,sym);
-   floatingMoney+=s.money; floatingPct+=s.pct;
-   openRows+=`<tr><td>${sym}</td><td>${tr.direction}</td><td>${entry.toFixed(5)}</td><td>${cur.toFixed(5)}</td><td class="${pips>=0?'win':'loss'}">${pips.toFixed(1)}p</td><td class="${s.pct>=0?'win':'loss'}">${s.pct.toFixed(3)}%</td><td>$${s.money.toFixed(3)}</td></tr>`;
-  }
- }
- if(openRows.indexOf("<td>")==-1) openRows+="<tr><td colspan=7>no open trades - waiting for stop grab</td></tr>";
- document.getElementById("openTable").innerHTML=openRows;
- document.getElementById("floating").innerText=floatingPct.toFixed(3)+"% ($"+floatingMoney.toFixed(3)+")";
- let closedRows="<tr><th>Time</th><th>Sym</th><th>Outcome</th><th>Pips</th><th>%</th><th>$</th><th>Note</th></tr>";
- closed.forEach(c=>{
-  const pips=parseFloat(c.pips||0);
-  const s=pipToStats(pips,c.symbol);
-  totalMoney+=s.money;
-  if(c.outcome=="WIN") wins++;
-  closedRows=`<tr><td>${(c.timestamp_utc||'').slice(11,16)}</td><td>${c.symbol}</td><td><span class="badge ${c.outcome=='WIN'?'badge-win':'badge-loss'}">${c.outcome}</span></td><td class="${pips>=0?'win':'loss'}">${pips.toFixed(1)}p</td><td class="${s.pct>=0?'win':'loss'}">${s.pct.toFixed(3)}%</td><td>$${s.money.toFixed(3)}</td><td>${c.note||''}</td></tr>`+closedRows;
- });
- document.getElementById("closedTable").innerHTML=closedRows;
- const totalPct=(totalMoney/BALANCE)*100;
- document.getElementById("totalPct").innerText=totalPct.toFixed(3);
- document.getElementById("totalPct").className=(totalPct>=0?'win big':'loss big');
- document.getElementById("totalMoney").innerText=" ($"+totalMoney.toFixed(3)+")";
- document.getElementById("totalTrades").innerText=closed.length;
- document.getElementById("winrate").innerText=closed.length?Math.round(wins/closed.length*100)+"%":"0%";
- document.getElementById("balance").innerText=(BALANCE+totalMoney+floatingMoney).toFixed(3);
- document.getElementById("startBal").innerText=BALANCE.toFixed(2);
-}
-setInterval(refresh,3000); refresh();
-</script>
-</body>
-</html>
+L(); setInterval(L,5000);
+</script></body></html>
