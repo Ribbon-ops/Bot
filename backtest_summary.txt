@@ -1,0 +1,20 @@
+
+==================================================
+BACKTEST RESULTS
+==================================================
+Total trades:       3697
+Win rate:           0.2% (6W / 3691L)
+Total pips:         -36820.0
+Avg win:            +15.0 pips
+Avg loss:           -10.0 pips
+Profit factor:      0.00  (>1.0 = gross wins exceed gross losses)
+Max drawdown:       36820.0 pips (worst peak-to-trough)
+Spread cost used:   15.0 pips/trade
+TP / SL:            15.0 / 10.0 pips
+==================================================
+
+⚠️  Profit factor below 1.0 -- this strategy configuration LOSES
+   money on this historical data, even before considering that
+   live spreads/slippage are often worse than backtest assumptions.
+
+Full trade log saved to data/XAUUSD_5min_history_backtest_trades.csv
