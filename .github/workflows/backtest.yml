@@ -1,0 +1,46 @@
+name: Gold Strategy Backtest
+
+on:
+  workflow_dispatch: {}   # manual trigger only -- this is a one-off/occasional task,
+                          # not something that should run on a schedule
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch historical gold data
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          SYMBOLS: "XAU/USD"
+          INTERVAL: "5min"
+          MONTHS_BACK: "3"
+        run: python fetch_historical_data.py
+
+      - name: Run backtest
+        run: python backtest.py data/XAUUSD_5min_history.csv | tee backtest_summary.txt
+
+      - name: Commit results
+        run: |
+          git config user.name "gold-backtest"
+          git config user.email "gold-backtest@users.noreply.github.com"
+          for f in data/XAUUSD_5min_history.csv data/XAUUSD_5min_history_backtest_trades.csv backtest_summary.txt; do
+            if [ -f "$f" ]; then
+              git add "$f"
+            fi
+          done
+          git diff --cached --quiet || git commit -m "Update gold backtest results [skip ci]"
+          git push
